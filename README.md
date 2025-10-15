@@ -236,3 +236,17 @@ volumes:
 networks:
   frappe_network:
     driver: bridge
+
+
+    # Database Configuration
+MYSQL_ROOT_PASSWORD=YourStrongPassword123!
+
+# ERPNext Site Configuration
+SITE_NAME=erp.yourdomain.com
+# OR use your public IP if no domain
+# SITE_NAME=123.45.67.89
+
+# ERPNext Admin Password
+ADMIN_PASSWORD=YourAdminPassword123!
+
+# Note: Change these passwords before deployment!
