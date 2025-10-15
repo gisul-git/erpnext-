@@ -1,0 +1,122 @@
+version: "3"
+
+services:
+  backend:
+    image: frappe/erpnext:v15.82.1
+    networks:
+      - frappe_network
+    restart: on-failure
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      MYSQL_ROOT_PASSWORD: admin
+      MARIADB_ROOT_PASSWORD: admin
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+
+  db:
+    image: mariadb:10.6
+    networks:
+      - frappe_network
+    restart: on-failure
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-name-resolve
+      - --skip-host-cache
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-cache:
+    image: redis:6.2-alpine
+    networks:
+      - frappe_network
+    restart: on-failure
+
+  redis-queue:
+    image: redis:6.2-alpine
+    networks:
+      - frappe_network
+    restart: on-failure
+    volumes:
+      - redis-queue-data:/data
+
+  redis-socketio:
+    image: redis:6.2-alpine
+    networks:
+      - frappe_network
+    restart: on-failure
+
+  frontend:
+    image: frappe/erpnext:v15.82.1
+    networks:
+      - frappe_network
+    depends_on:
+      - backend
+      - websocket
+    restart: on-failure
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      FRAPPE_SITE_NAME_HEADER: $$host
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+    ports:
+      - "0.0.0.0:8080:8080"
+
+  websocket:
+    image: frappe/erpnext:v15.82.1
+    networks:
+      - frappe_network
+    restart: on-failure
+    environment:
+      REDIS_SOCKETIO: redis-socketio:6379
+    command: bash -c "node /home/frappe/frappe-bench/apps/frappe/socketio.js"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+
+  configurator:
+    image: frappe/erpnext:v15.82.1
+    networks:
+      - frappe_network
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host $$DB_HOST;
+        bench set-config -gp db_port $$DB_PORT;
+        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
+        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
+        bench set-config -g redis_socketio "redis://$$REDIS_SOCKETIO";
+        bench set-config -gp socketio_port $$SOCKETIO_PORT;
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+      SOCKETIO_PORT: "9000"
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+
+volumes:
+  db-data:
+  redis-queue-data:
+  sites:
+  logs:
+
+networks:
+  frappe_network:
+    driver: bridge
