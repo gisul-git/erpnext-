@@ -4,6 +4,7 @@ services:
   # Database
   db:
     image: mariadb:10.6
+    container_name: erpnext_db
     networks:
       - frappe_network
     restart: unless-stopped
@@ -19,7 +20,7 @@ services:
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-padmin"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,6 +28,7 @@ services:
   # Redis Cache
   redis-cache:
     image: redis:6.2-alpine
+    container_name: erpnext_redis_cache
     networks:
       - frappe_network
     restart: unless-stopped
@@ -39,6 +41,7 @@ services:
   # Redis Queue
   redis-queue:
     image: redis:6.2-alpine
+    container_name: erpnext_redis_queue
     networks:
       - frappe_network
     restart: unless-stopped
@@ -53,6 +56,7 @@ services:
   # Redis SocketIO
   redis-socketio:
     image: redis:6.2-alpine
+    container_name: erpnext_redis_socketio
     networks:
       - frappe_network
     restart: unless-stopped
@@ -65,6 +69,7 @@ services:
   # Configurator - Creates site on first run
   configurator:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_configurator
     networks:
       - frappe_network
     restart: "no"
@@ -94,6 +99,7 @@ services:
             --admin-password $$ADMIN_PASSWORD 
             --no-mariadb-socket 
             --install-app erpnext;
+          echo "Site created successfully!";
         else
           echo "Site $$SITE_NAME already exists, skipping creation.";
         fi
@@ -114,6 +120,7 @@ services:
   # Backend - Gunicorn
   backend:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_backend
     networks:
       - frappe_network
     restart: unless-stopped
@@ -134,6 +141,7 @@ services:
   # Queue Worker - Short
   queue-short:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_queue_short
     networks:
       - frappe_network
     restart: unless-stopped
@@ -148,6 +156,7 @@ services:
   # Queue Worker - Default
   queue-default:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_queue_default
     networks:
       - frappe_network
     restart: unless-stopped
@@ -162,6 +171,7 @@ services:
   # Queue Worker - Long
   queue-long:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_queue_long
     networks:
       - frappe_network
     restart: unless-stopped
@@ -176,6 +186,7 @@ services:
   # Scheduler
   scheduler:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_scheduler
     networks:
       - frappe_network
     restart: unless-stopped
@@ -190,6 +201,7 @@ services:
   # WebSocket
   websocket:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_websocket
     networks:
       - frappe_network
     restart: unless-stopped
@@ -206,6 +218,7 @@ services:
   # Frontend - Nginx
   frontend:
     image: frappe/erpnext:v15.82.1
+    container_name: erpnext_frontend
     networks:
       - frappe_network
     depends_on:
@@ -224,8 +237,6 @@ services:
       - logs:/home/frappe/frappe-bench/logs
     ports:
       - "80:8080"
-      # For HTTPS, uncomment below and configure SSL
-      # - "443:8443"
 
 volumes:
   db-data:
@@ -236,17 +247,3 @@ volumes:
 networks:
   frappe_network:
     driver: bridge
-
-
-    # Database Configuration
-MYSQL_ROOT_PASSWORD=YourStrongPassword123!
-
-# ERPNext Site Configuration
-SITE_NAME=erp.yourdomain.com
-# OR use your public IP if no domain
-# SITE_NAME=123.45.67.89
-
-# ERPNext Admin Password
-ADMIN_PASSWORD=YourAdminPassword123!
-
-# Note: Change these passwords before deployment!
